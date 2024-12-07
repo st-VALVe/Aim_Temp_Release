@@ -1,41 +1,131 @@
 <!DOCTYPE html>
 <html lang="en-us">
-  <head>
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity Web Player | Aim</title>
-  </head>
-  <body style="text-align: center; padding: 0; border: 0; margin: 0;">
-    <canvas id="unity-canvas" width=600 height=900 tabindex="-1" style="width: 600px; height: 900px; background: #231F20"></canvas>
-    <script src="Build/AimBuild.loader.js"></script>
-    <script>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>Unity Web Player | Aim</title>
+  <link rel="shortcut icon" href="TemplateData/favicon.ico">
+  <link rel="stylesheet" href="TemplateData/style.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    /* Enforce vertical aspect ratio for the Unity canvas */
+    #unity-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #unity-canvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 9 / 16; /* Maintain vertical aspect ratio */
+    }
+  </style>
+</head>
+<body>
+  <div id="unity-container">
+    <canvas id="unity-canvas" width="1440" height="2560" tabindex="-1"></canvas>
+    <div id="unity-loading-bar">
+      <div id="unity-logo"></div>
+      <div id="unity-progress-bar-empty">
+        <div id="unity-progress-bar-full"></div>
+      </div>
+    </div>
+    <div id="unity-warning"></div>
+  </div>
+  <script>
+    window.addEventListener("load", function () {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("ServiceWorker.js");
+      }
+
+      function adjustCanvasSize() {
+        const canvas = document.querySelector("#unity-canvas");
+        const container = document.querySelector("#unity-container");
+        const windowRatio = window.innerWidth / window.innerHeight;
+        const targetRatio = 9 / 16; // Enforce vertical aspect ratio
+
+        if (windowRatio > targetRatio) {
+          // Wider than the target ratio: adjust width
+          canvas.style.width = `${window.innerHeight * targetRatio}px`;
+          canvas.style.height = `${window.innerHeight}px`;
+        } else {
+          // Taller than the target ratio: adjust height
+          canvas.style.width = `${window.innerWidth}px`;
+          canvas.style.height = `${window.innerWidth / targetRatio}px`;
+        }
+
+        // Center the canvas in the container
+        container.style.justifyContent = "center";
+        container.style.alignItems = "center";
+      }
+
+      window.addEventListener("resize", adjustCanvasSize);
+      adjustCanvasSize(); // Adjust on page load
+
+      var container = document.querySelector("#unity-container");
+      var canvas = document.querySelector("#unity-canvas");
+      var loadingBar = document.querySelector("#unity-loading-bar");
+      var progressBarFull = document.querySelector("#unity-progress-bar-full");
+      var warningBanner = document.querySelector("#unity-warning");
+
+      function unityShowBanner(msg, type) {
+        function updateBannerVisibility() {
+          warningBanner.style.display = warningBanner.children.length ? 'block' : 'none';
+        }
+        var div = document.createElement('div');
+        div.innerHTML = msg;
+        warningBanner.appendChild(div);
+        if (type == 'error') div.style = 'background: red; padding: 10px;';
+        else {
+          if (type == 'warning') div.style = 'background: yellow; padding: 10px;';
+          setTimeout(function() {
+            warningBanner.removeChild(div);
+            updateBannerVisibility();
+          }, 5000);
+        }
+        updateBannerVisibility();
+      }
+
+      var buildUrl = "Build";
+      var loaderUrl = buildUrl + "/AimBuild.loader.js";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/AimBuild.data",
+        frameworkUrl: buildUrl + "/AimBuild.framework.js",
+        codeUrl: buildUrl + "/AimBuild.wasm",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "DefaultCompany",
+        productName: "Aim",
+        productVersion: "0.1",
+        showBanner: unityShowBanner,
+      };
+
       if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-        // Mobile device style: fill the whole browser client area with the game canvas:
         var meta = document.createElement('meta');
         meta.name = 'viewport';
         meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
         document.getElementsByTagName('head')[0].appendChild(meta);
-
-        var canvas = document.querySelector("#unity-canvas");
-        canvas.style.width = "100%";
-        canvas.style.height = "100%";
-        canvas.style.position = "fixed";
-
-        document.body.style.textAlign = "left";
       }
 
-      createUnityInstance(document.querySelector("#unity-canvas"), {
-        arguments: [],
-        dataUrl: "Build/AimBuild.data",
-        frameworkUrl: "Build/AimBuild.framework.js",
-        codeUrl: "Build/AimBuild.wasm",
-        streamingAssetsUrl: "StreamingAssets",
-        companyName: "DefaultCompany",
-        productName: "Aim",
-        productVersion: "1.0",
-        // matchWebGLToCanvasSize: false, // Uncomment this to separately control WebGL canvas render size and DOM element size.
-        // devicePixelRatio: 1, // Uncomment this to override low DPI rendering on high DPI displays.
-      });
-    </script>
-  </body>
+      //canvas.style.background = "url('" + buildUrl + "/AimBuild.jpg') center / cover";
+      loadingBar.style.display = "block";
+
+      var script = document.createElement("script");
+      script.src = loaderUrl;
+      script.onload = () => {
+        createUnityInstance(canvas, config, (progress) => {
+          progressBarFull.style.width = 100 * progress + "%";
+        }).then((unityInstance) => {
+          loadingBar.style.display = "none";
+        }).catch((message) => {
+          alert(message);
+        });
+      };
+      document.body.appendChild(script);
+    });
+  </script>
+</body>
 </html>
